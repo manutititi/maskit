@@ -1,0 +1,7 @@
+{
+  "John": "{{FIRST_NAME}}",
+  "Doe": "{{LAST_NAME}}",
+  "ExampleCorp": "{{COMPANY}}",
+  "example.com": "{{DOMAIN}}",
+  "example2.com": "domain.test"
+}
