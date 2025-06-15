@@ -109,6 +109,65 @@
     .profile-controls button {
       flex: 1;
     }
+
+    .import-export-btn {
+      background-color: #007bff;
+      color: rgb(255, 255, 255);
+      font-weight: bold;
+    }
+
+    .import-export-area {
+      display: none;
+      margin-top: 10px;
+    }
+
+
+    /* Toggle switch styling */
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ccc;
+      border-radius: 24px;
+      transition: .4s;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: .4s;
+    }
+    input:checked + .slider {
+      background-color: #28a745;
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+
+
+
   </style>
 </head>
 <body>
@@ -135,6 +194,17 @@
     <textarea id="text" placeholder="Paste text to mask or unmask..."></textarea>
   </div>
 
+  <div class="section">
+    <div class="toggle-container">
+      <label class="switch">
+        <input type="checkbox" id="toggle-mask-ip">
+        <span class="slider"></span>
+      </label>
+      <span>Toggle IP masking</span>
+    </div>
+  </div>
+
+
   <button id="mask">Mask 🛡</button>
   <button id="restore">Unmask 🔁</button>
   <button id="copy">Copy 📋</button>
@@ -153,6 +223,11 @@
     </table>
     <button id="add">+ Add Entry</button>
     <button id="save">💾 Save Changes</button>
+
+    <button id="export" class="import-export-btn">📤 Export Profiles</button>
+    <button id="import" class="import-export-btn">📥 Import Profiles</button>
+    <textarea id="import-json" class="import-export-area" placeholder="Paste your profile JSON here..."></textarea>
+    <button id="import-apply" class="import-export-btn import-export-area">Apply Import</button>
   </div>
 
   <script src="popup.js"></script>

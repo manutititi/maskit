@@ -1,8 +1,34 @@
 let currentProfileName = "";
 let profiles = {};
+let maskIpEnabled = true;
+
 
 document.addEventListener("DOMContentLoaded", () => {
   loadProfiles();
+
+  // 📥 Restore textarea:
+  const textArea = document.getElementById("text");
+  const savedText = localStorage.getItem("textareaContent");
+  if (savedText !== null) {
+    textArea.value = savedText;
+  }
+
+  // SAve while typping
+  textArea.addEventListener("input", () => {
+    localStorage.setItem("textareaContent", textArea.value);
+  });
+
+
+    // Toggle IP Masking
+  const toggle = document.getElementById("toggle-mask-ip");
+  const savedToggle = localStorage.getItem("maskIpEnabled");
+  if (savedToggle !== null) maskIpEnabled = savedToggle === "true";
+  toggle.checked = maskIpEnabled;
+  toggle.addEventListener("change", () => {
+    maskIpEnabled = toggle.checked;
+    localStorage.setItem("maskIpEnabled", maskIpEnabled);
+  });
+
 
   document.getElementById("mask").addEventListener("click", () =>
     maskOrUnmask("mask")
@@ -11,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
     maskOrUnmask("unmask")
   );
   document.getElementById("copy").addEventListener("click", () => {
-    navigator.clipboard.writeText(document.getElementById("text").value);
+    navigator.clipboard.writeText(textArea.value);
     alert("Copied!");
   });
 
@@ -19,6 +45,57 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("save").addEventListener("click", saveCurrentProfile);
   document.getElementById("create").addEventListener("click", createNewProfile);
   document.getElementById("delete").addEventListener("click", deleteCurrentProfile);
+
+  // Export
+   document.getElementById("export").addEventListener("click", () => {
+    const name = currentProfileName;
+    if (!profiles[name]) {
+      alert("No hay perfil seleccionado para exportar.");
+      return;
+    }
+    const single = { [name]: profiles[name] };
+    const dataStr = JSON.stringify(single, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `maskit-profile-${name}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById("import").addEventListener("click", () => {
+  const textarea = document.getElementById("import-json");
+  const applyBtn = document.getElementById("import-apply");
+
+  textarea.style.display = "block";
+  applyBtn.style.display = "block";
+});
+
+document.getElementById("import-apply").addEventListener("click", () => {
+  const textarea = document.getElementById("import-json");
+  const applyBtn = document.getElementById("import-apply");
+
+  try {
+    const imported = JSON.parse(textarea.value);
+    if (typeof imported !== "object") throw new Error("Incorrect");
+
+    profiles = { ...profiles, ...imported };
+    localStorage.setItem("profiles", JSON.stringify(profiles));
+    populateProfileSelect();
+    alert("Profiles imported successfully!");
+
+    textarea.value = "";
+    textarea.style.display = "none";
+    applyBtn.style.display = "none";
+  } catch (e) {
+    alert("Error " + e.message);
+  }
+});
+
+
+
+
 });
 
 function loadProfiles() {
@@ -136,48 +213,66 @@ function generateSeed() {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
+
 async function maskOrUnmask(action) {
   const textArea = document.getElementById("text");
-  const text = textArea.value;
-  const profile = profiles[currentProfileName];
-  const seed = profile["__seed"];
-  const keyBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(seed));
-  const kint = new Uint32Array(keyBuffer)[0];
+  let text = textArea.value;
 
+  const profile = profiles[currentProfileName] || {};
+  const keyBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(profile["__seed"] || "")
+  );
+  const kint = new Uint32Array(keyBuffer)[0];
   const ipRegex = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
 
   if (action === "mask") {
-    let result = text;
-    for (const [k, v] of Object.entries(profile)) {
-      if (k.startsWith("__")) continue;
-      result = result.replaceAll(k, v);
-    }
+    // Quitar comentarios previos
+    text = text.replace(/^#.*\n+/, "");
 
-    const ips = [...new Set(result.match(ipRegex) || [])];
-    let idx = 1;
-    for (const ip of ips) {
-      const ipInt = ip.split('.').reduce((a, b) => (a << 8) + +b, 0);
-      const obf = (ipInt ^ kint).toString(36).toUpperCase();
-      const ph = `{{IP_${idx++}_${obf}}}`;
-      result = result.replaceAll(ip, ph);
-    }
-
-    const comment = "# This text was masked. Placeholders like {{IP_1_XXXXXX}} or {{FIELD}} represent real values. Values are consistent across the text.\n\n";
-    if (!result.startsWith(comment)) {
-      result = comment + result;
-    }
-
-    textArea.value = result;
-  } else {
-    let result = text.replace(/^#.*\n+/g, "");
-    result = result.replace(/\{\{IP_\d+_([A-Z0-9]+)\}\}/g, (_, code) => {
-      const ipInt = parseInt(code, 36) ^ kint;
-      return [24, 16, 8, 0].map(shift => (ipInt >> shift) & 255).join(".");
+    // Reemplazar campos de perfil
+    Object.entries(profile).forEach(([k, v]) => {
+      if (k.startsWith("__")) return;
+      const re = new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+      text = text.replace(re, v);
     });
-    for (const [k, v] of Object.entries(profile)) {
-      if (k.startsWith("__")) continue;
-      result = result.replaceAll(v, k);
+
+    // Enmascarar IPs solo si toggle activo
+    if (maskIpEnabled) {
+      const ips = [...new Set(text.match(ipRegex) || [])];
+      const map = {};
+      ips.forEach((ip, i) => {
+        const ipInt = ip.split('.').reduce((acc, b) => (acc << 8) + +b, 0);
+        const obf = (ipInt ^ kint).toString(36).toUpperCase();
+        map[ip] = `{{IP_${i + 1}_${obf}}}`;
+      });
+      // Reemplazar todas las instancias de cada IP
+      text = text.replace(ipRegex, match => map[match]);
     }
-    textArea.value = result;
+
+    // Añadir comentario encabezado
+    const comment = "# This text was masked. Placeholders are consistent across the text.\n\n";
+    text = comment + text;
+
+  } else {
+    // Unmask: eliminar comentario
+    text = text.replace(/^#.*\n+/, "");
+
+    // Restaurar IPs
+    text = text.replace(/\{\{IP_\d+_([A-Z0-9]+)\}\}/g, (_, code) => {
+      const ipInt = parseInt(code, 36) ^ kint;
+      return [24, 16, 8, 0]
+        .map(s => (ipInt >> s) & 255)
+        .join('.');
+    });
+
+    // Restaurar placeholders de perfil
+    Object.entries(profile).forEach(([k, v]) => {
+      if (k.startsWith("__")) return;
+      text = text.replaceAll(v, k);
+    });
   }
+
+  textArea.value = text;
+  localStorage.setItem("textareaContent", text);
 }
