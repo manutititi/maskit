@@ -98,8 +98,26 @@ let profiles = JSON.parse(localStorage.getItem("profiles") || "{}");
 let maskIpEnabled = true;
 window._lastMapping = {};
 
-document.addEventListener("DOMContentLoaded", () => {
+
+document.addEventListener("DOMContentLoaded", async () => {
   loadProfiles();
+
+  if (Object.keys(profiles).length === 0) {
+    try {
+      const res = await fetch(chrome.runtime.getURL("profiles/default.json"));
+      const defaultProfile = await res.json();
+      profiles = defaultProfile;
+      localStorage.setItem("profiles", JSON.stringify(profiles));
+      const defaultName = Object.keys(profiles)[0];
+      localStorage.setItem("lastProfile", defaultName);
+      currentProfileName = defaultName;
+      populateProfileSelect();
+      alert("Perfil por defecto cargado.");
+    } catch (e) {
+      console.error("Error al cargar el perfil por defecto:", e);
+    }
+  }
+
 
   const textArea = document.getElementById("text");
   const saved = localStorage.getItem("textareaContent");

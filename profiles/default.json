@@ -1,7 +1,10 @@
 {
-  "John": "{{FIRST_NAME}}",
-  "Doe": "{{LAST_NAME}}",
-  "ExampleCorp": "{{COMPANY}}",
-  "example.com": "{{DOMAIN}}",
-  "example2.com": "domain.test"
+  "default": {
+    "__seed": "default123",
+    "John": "{{FIRST_NAME}}",
+    "Doe": "{{LAST_NAME}}",
+    "ExampleCorp": "{{COMPANY}}",
+    "example.com": "{{DOMAIN}}",
+    "example2.com": "domain.test"
+  }
 }
