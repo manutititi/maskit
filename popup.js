@@ -32,6 +32,8 @@ function base36Decode(str) {
   return parseInt(str, 36) >>> 0;
 }
 
+
+
 async function maskText(text, profile) {
   const mapping = {};
   const key = await generateKey(profile["__seed"] || "");
@@ -67,11 +69,22 @@ async function maskText(text, profile) {
     text = comment + text;
   }
 
+  // Guardar mapping en localStorage
+  window._lastMapping = mapping;
+  localStorage.setItem("lastMapping", JSON.stringify(mapping));
+
   return { output: text, mapping };
 }
 
+
+
 async function restoreText(text, mapping, seed) {
   const key = await generateKey(seed);
+
+  // Si no se pasó mapping explícitamente, intenta recuperar desde localStorage
+  if (!mapping || Object.keys(mapping).length === 0) {
+    mapping = JSON.parse(localStorage.getItem("lastMapping") || "{}");
+  }
 
   // Remove comment
   const commentRegex = /^# This text was masked\.[\s\S]*?\n{2,}/;
@@ -89,8 +102,10 @@ async function restoreText(text, mapping, seed) {
     const esc = ph.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     text = text.replace(new RegExp(esc, "g"), orig);
   }
+
   return text;
 }
+
 
 // ==== UI Logic ====
 let currentProfileName = "";
