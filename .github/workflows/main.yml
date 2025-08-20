@@ -1,0 +1,21 @@
+name: vpn-ping
+on:
+  workflow_dispatch: # ejecución manual
+
+jobs:
+  ping-vpn:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Conectar a WireGuard
+        uses: niklaskeerl/easy-wireguard-action@v2
+        with:
+          WG_CONFIG_FILE: ${{ secrets.WG_CONFIG_FILE }}
+
+      - name: Ver interfaces
+        run: ip a show wg0
+
+      - name: Hacer ping a 172.32.0.1
+        run: ping -c 4 172.32.0.1
